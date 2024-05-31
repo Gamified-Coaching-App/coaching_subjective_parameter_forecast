@@ -11,9 +11,9 @@ config = {
     'unit_decline': 0,      # Share per layer to reduce the number of units by
 
     # Training parameters
-    'num_epochs': 100,         # Number of epochs for training
+    'num_epochs': 200,         # Number of epochs for training
     'batch_size': 512,        # Batch size for training
-    'learning_rate': 0.01,   # Learning rate for the optimizer
+    'learning_rate': 0.1,   # Learning rate for the optimizer
     'optimizer': 'adadelta',      # Type of optimizer (e.g., 'adam', 'adadelta', 'sgd')
     'optimizer_params': {}#{'beta_1':0.6, 'beta_2':0.9999, 'epsilon':1e-07}    # Additional parameters for the optimizer
 }
