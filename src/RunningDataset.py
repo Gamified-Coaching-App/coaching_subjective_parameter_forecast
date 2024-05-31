@@ -137,16 +137,6 @@ class RunningDataset:
         group[self.identifiers[0]] = group[self.identifiers[0]].ffill()
         return group
 
-    def preprocess(self, days=14):
-        """
-        Prepares the dataset for training by normalizing and splitting into train and test datasets.
-        """
-        self.data = self.normalise(self.data, days=days)
-        self.train, self.test = self.split_data()
-        self.X_test = self.test.drop(columns=self.fixed_columns)
-        self.y_test = self.test[self.class_name]
-        return self.train, self.X_test, self.y_test
-
     def stack(self, df, days):
         """
         Converts data from 2D shape (no_samples, no_variables * no_time_steps), i.e., (N, 140) to 
@@ -165,6 +155,14 @@ class RunningDataset:
                 reshaped_data[index, time_step, :] = row.iloc[segment_start:segment_end].values
                 
         return reshaped_data
+    
+    def mask(self, data):
+        """
+        Masks (=set 0) the subjective parameters of the last 7 days of each athlete's data.
+        """
+        masked_data = data.copy()
+        masked_data[:, -7:, -3:] = 0
+        return masked_data
 
     def preprocess(self, days=14):
         """
@@ -174,10 +172,9 @@ class RunningDataset:
         self.train, self.test = train_test_split(self.data)
         self.X_train = self.stack(self.train.drop(columns=self.fixed_columns), days)
         self.X_test = self.stack(self.test.drop(columns=self.fixed_columns), days)
-        self.X_train_masked = self.X_train.copy()
-        self.X_test_masked = self.X_test.copy()
-        self.X_train_masked[:, -7:, -3:] = 0  
-        self.X_test_masked[:, -7:, -3:] = 0
+        self.X_train_masked = self.mask(self.X_train)
+        self.X_test_masked = self.mask(self.X_test)
+
         X_train = tf.convert_to_tensor(self.X_train, dtype=tf.float32)
         X_train_masked = tf.convert_to_tensor(self.X_train_masked, dtype=tf.float32)
         X_test = tf.convert_to_tensor(self.X_test, dtype=tf.float32)
