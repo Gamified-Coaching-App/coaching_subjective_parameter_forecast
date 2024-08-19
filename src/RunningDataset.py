@@ -169,16 +169,8 @@ class RunningDataset:
         Normalises, splits, stacks and masks data for training and testing.
         """
         self.data = self.normalise(self.data, days=days)
-        self.train, self.test = train_test_split(self.data)
-        self.X_train = self.stack(self.train.drop(columns=self.fixed_columns), days)
-        self.X_test = self.stack(self.test.drop(columns=self.fixed_columns), days)
-        self.X_train_masked = self.mask(self.X_train)
-        self.X_test_masked = self.mask(self.X_test)
+        self.X = self.stack(self.data.drop(columns=self.fixed_columns), days)
+        self.X_masked = self.mask(self.X)
 
-        X_train = tf.convert_to_tensor(self.X_train, dtype=tf.float32)
-        X_train_masked = tf.convert_to_tensor(self.X_train_masked, dtype=tf.float32)
-        X_test = tf.convert_to_tensor(self.X_test, dtype=tf.float32)
-        X_test_masked = tf.convert_to_tensor(self.X_test_masked, dtype=tf.float32)
-
-        print("Shapes of the datasets: X_train:", X_train.shape, "X_test:", X_test.shape)
-        return X_train, X_train_masked, X_test, X_test_masked
+        print("Shapes of the datasets: X_train:", self.X.shape, "X_test:", self.X_masked.shape)
+        return self.X, self.X_masked
