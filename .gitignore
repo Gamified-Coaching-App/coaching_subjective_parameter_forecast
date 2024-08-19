@@ -13,3 +13,6 @@ __pycache__/
 .DS_Store/
 
 .vscode/
+
+cross_validation_report.json
+final_training_report.json
