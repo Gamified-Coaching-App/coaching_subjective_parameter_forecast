@@ -1,5 +1,5 @@
 # Ignore virtual environment
-coaching_venv_02/
+subj_param_venv/
 
 # Ignore models directory
 model/
@@ -14,5 +14,4 @@ __pycache__/
 
 .vscode/
 
-cross_validation_report.json
-final_training_report.json
+report_files/

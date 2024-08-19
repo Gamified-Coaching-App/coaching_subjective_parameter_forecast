@@ -22,11 +22,20 @@ cross_val_optimiser_params = [
     {
         'optimiser': 'adadelta',
         'learning_rate': 1.0,
-        'weight_decay': 0.0001,
+        'weight_decay': 0.0,
         'scheduler': 'None',
         'scheduler_params': 'None', 
         'batch_size': 64,
-        'epochs': 1
+        'epochs': 2
+    },
+    {
+        'optimiser': 'adadelta',
+        'learning_rate': 1.0,
+        'weight_decay': 0.01,
+        'scheduler': 'None',
+        'scheduler_params': 'None', 
+        'batch_size': 64,
+        'epochs': 2
     }
 ]
 
