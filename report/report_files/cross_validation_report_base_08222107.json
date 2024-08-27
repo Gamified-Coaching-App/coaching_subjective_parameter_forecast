@@ -1,0 +1,62 @@
+{
+  "architecture=[{'type': 'transformer_encoder', 'num_heads': 4, 'intermediate_dim': 12, 'dropout': 0.1, 'activation': 'relu'}, {'type': 'transformer_encoder', 'num_heads': 4, 'intermediate_dim': 12, 'dropout': 0.1, 'activation': 'relu'}, {'type': 'transformer_decoder', 'num_heads': 4, 'intermediate_dim': 12, 'dropout': 0.1, 'activation': 'relu'}, {'type': 'transformer_decoder', 'num_heads': 4, 'intermediate_dim': 12, 'dropout': 0.1, 'activation': 'relu'}, {'type': 'flatten'}, {'type': 'dense', 'units': 21}, {'type': 'reshape', 'target_shape': (7, 3)}, {'type': 'activation', 'activation': 'linear'}], optimiser_params={'optimiser': 'adam', 'learning_rate': 0.0001, 'weight_decay': 0.0, 'scheduler': 'None', 'scheduler_params': 'None', 'batch_size': 64}": {
+    "val_losses": [
+      0.0008587307529523969,
+      0.0008162956219166517,
+      0.0008599514258094132,
+      0.000854862853884697,
+      0.0008193618850782514
+    ],
+    "mean_val_loss": 0.000842,
+    "stdv_val_loss": 2e-05,
+    "num_epochs": 200
+  },
+  "architecture=[{'type': 'transformer_encoder', 'num_heads': 4, 'intermediate_dim': 12, 'dropout': 0.1, 'activation': 'relu'}, {'type': 'transformer_encoder', 'num_heads': 4, 'intermediate_dim': 12, 'dropout': 0.1, 'activation': 'relu'}, {'type': 'transformer_encoder', 'num_heads': 4, 'intermediate_dim': 12, 'dropout': 0.1, 'activation': 'relu'}, {'type': 'transformer_decoder', 'num_heads': 4, 'intermediate_dim': 12, 'dropout': 0.1, 'activation': 'relu'}, {'type': 'transformer_decoder', 'num_heads': 4, 'intermediate_dim': 12, 'dropout': 0.1, 'activation': 'relu'}, {'type': 'transformer_decoder', 'num_heads': 4, 'intermediate_dim': 12, 'dropout': 0.1, 'activation': 'relu'}, {'type': 'flatten'}, {'type': 'dense', 'units': 21}, {'type': 'reshape', 'target_shape': (7, 3)}, {'type': 'activation', 'activation': 'linear'}], optimiser_params={'optimiser': 'adam', 'learning_rate': 0.0001, 'weight_decay': 0.0, 'scheduler': 'None', 'scheduler_params': 'None', 'batch_size': 64}": {
+    "val_losses": [
+      0.0008676237193867564,
+      0.0008304925286211073,
+      0.0008374537574127316,
+      0.0008512740605510771,
+      0.0008774513262324035
+    ],
+    "mean_val_loss": 0.000853,
+    "stdv_val_loss": 1.8e-05,
+    "num_epochs": 200
+  },
+  "architecture=[{'type': 'transformer_encoder', 'num_heads': 8, 'intermediate_dim': 24, 'dropout': 0.1, 'activation': 'relu'}, {'type': 'transformer_encoder', 'num_heads': 8, 'intermediate_dim': 24, 'dropout': 0.1, 'activation': 'relu'}, {'type': 'transformer_encoder', 'num_heads': 8, 'intermediate_dim': 24, 'dropout': 0.1, 'activation': 'relu'}, {'type': 'transformer_decoder', 'num_heads': 8, 'intermediate_dim': 24, 'dropout': 0.1, 'activation': 'relu'}, {'type': 'transformer_decoder', 'num_heads': 8, 'intermediate_dim': 24, 'dropout': 0.1, 'activation': 'relu'}, {'type': 'transformer_decoder', 'num_heads': 8, 'intermediate_dim': 24, 'dropout': 0.1, 'activation': 'relu'}, {'type': 'flatten'}, {'type': 'dense', 'units': 21}, {'type': 'reshape', 'target_shape': (7, 3)}, {'type': 'activation', 'activation': 'linear'}], optimiser_params={'optimiser': 'adam', 'learning_rate': 0.0001, 'weight_decay': 0.0, 'scheduler': 'None', 'scheduler_params': 'None', 'batch_size': 64}": {
+    "val_losses": [
+      0.0007959392969496548,
+      0.0009551710681989789,
+      0.0008123692241497338,
+      0.0008765857783146203,
+      0.0007729543722234666
+    ],
+    "mean_val_loss": 0.000843,
+    "stdv_val_loss": 6.6e-05,
+    "num_epochs": 200
+  },
+  "architecture=[{'type': 'lstm', 'units': 128, 'return_sequences': True}, {'type': 'lstm', 'units': 128, 'return_sequences': True}, {'type': 'lstm', 'units': 128, 'return_sequences': True}, {'type': 'lstm', 'units': 128, 'return_sequences': False}, {'type': 'dense', 'units': 21}, {'type': 'reshape', 'target_shape': (7, 3)}, {'type': 'activation', 'activation': 'linear'}], optimiser_params={'optimiser': 'adadelta', 'learning_rate': 1.0, 'weight_decay': 0.0, 'scheduler': 'None', 'scheduler_params': 'None', 'batch_size': 64}": {
+    "val_losses": [
+      0.0018600438488647342,
+      0.0018286430276930332,
+      0.00179599120747298,
+      0.0017831620061770082,
+      0.0018381316913291812
+    ],
+    "mean_val_loss": 0.001821,
+    "stdv_val_loss": 2.8e-05,
+    "num_epochs": 200
+  },
+  "architecture=[{'type': 'lstm', 'units': 64, 'return_sequences': True}, {'type': 'lstm', 'units': 64, 'return_sequences': True}, {'type': 'lstm', 'units': 64, 'return_sequences': True}, {'type': 'lstm', 'units': 64, 'return_sequences': True}, {'type': 'lstm', 'units': 21, 'return_sequences': False}, {'type': 'reshape', 'target_shape': (7, 3)}, {'type': 'activation', 'activation': 'linear'}], optimiser_params={'optimiser': 'adadelta', 'learning_rate': 1.0, 'weight_decay': 0.0, 'scheduler': 'None', 'scheduler_params': 'None', 'batch_size': 64}": {
+    "val_losses": [
+      0.0018940647132694721,
+      0.0018737195059657097,
+      0.0018431528005748987,
+      0.0018204875523224473,
+      0.0018715865444391966
+    ],
+    "mean_val_loss": 0.001861,
+    "stdv_val_loss": 2.6e-05,
+    "num_epochs": 200
+  }
+}
