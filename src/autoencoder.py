@@ -1,10 +1,48 @@
 import tensorflow as tf
-from tensorflow.keras import layers, models, optimizers, losses, initializers, Sequential
+from tensorflow.keras import layers, models, optimizers, losses, initializers, Sequential, Layer
 from tensorflow.keras.layers import LSTM, RepeatVector, TimeDistributed, Dense, Dropout, BatchNormalization
 from keras_nlp.layers import TransformerEncoder, TransformerDecoder
 from sklearn.model_selection import KFold
 import numpy as np
-from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.callbacks import ModelCheckpoint, Callback, EarlyStopping
+from keras_nlp.layers import TransformerEncoder, TransformerDecoder
+import json
+
+NUM_EPOCHS = 1000
+
+class PositionalEncoding(Layer):
+    def __init__(self, max_len, d_model):
+        super(PositionalEncoding, self).__init__()
+        self.positional_encoding = self.get_positional_encoding(max_len, d_model)
+
+    def get_positional_encoding(self, max_len, d_model):
+        positions = tf.range(start=0, limit=max_len, delta=1, dtype=tf.float32)
+        angle_rates = 1 / tf.pow(10000, (2 * (tf.cast(tf.range(d_model), tf.float32) // 2)) / tf.cast(d_model, tf.float32))
+        angle_rads = positions[:, tf.newaxis] * angle_rates[tf.newaxis, :]
+
+        # Apply the sine to even indices in the array; 2i
+        angle_rads = tf.concat([tf.sin(angle_rads[:, 0::2]), tf.cos(angle_rads[:, 1::2])], axis=-1)
+
+        pos_encoding = angle_rads[tf.newaxis, ...]
+
+        return tf.cast(pos_encoding, tf.float32)
+
+    def call(self, inputs):
+        # Add the positional encoding to the inputs
+        return inputs + self.positional_encoding[:, :tf.shape(inputs)[1], :]
+    
+class BatchLossHistory(Callback):
+    def on_train_begin(self, logs=None):
+        self.batch_losses = []
+        self.epoch_losses = []
+
+    def on_batch_end(self, batch, logs=None):
+        self.batch_losses.append(logs.get('loss'))
+
+    def on_epoch_end(self, epoch, logs=None):
+        mean_loss = sum(self.batch_losses) / len(self.batch_losses)
+        self.epoch_losses.append(mean_loss)
+        self.batch_losses = []
 
 class Autoencoder(models.Model):
     def __init__(self, architecture, optimiser_params):
@@ -112,29 +150,39 @@ class Autoencoder(models.Model):
                     'normalize_first': layer_config.get('normalize_first')
                 }
                 x = TransformerDecoder(**params)(x)
+            
+            elif layer_type == 'positional_encoding':
+                x = PositionalEncoding(max_len=14, d_model=10)(x)
 
             elif layer_type == 'flatten':
                 x = layers.Flatten()(x)
 
             elif layer_type == 'activation':
                 x = layers.Activation(layer_config['activation'])(x)
+                model = models.Model(inputs=original_input, outputs=x)
+                return model
 
             elif layer_type == 'time_distributed':
                 x = layers.TimeDistributed(Dense(10))(x)
                 model = models.Model(inputs=original_input, outputs=x)
                 return model
 
-        # Default output layer if not explicitly specified
-        x = layers.Dense(config['output_dim'], activation=config.get('output_activation', 'linear'))(x)
-        model = models.Model(inputs=original_input, outputs=x)
-        return model
-
     def call(self, inputs):
         return self.model(inputs)
 
 def train_autoencoder(autoencoder, train_set, val_set, optimiser_params, mode):
     autoencoder.compile(optimizer=autoencoder.optimizer, loss='mse')
-    num_epochs = optimiser_params['epochs']
+    num_epochs = NUM_EPOCHS
+
+    early_stopping = EarlyStopping(
+        monitor='val_loss',
+        patience=300,  # Stop training after 100 epochs with no improvement
+        restore_best_weights=False,
+        verbose=0,
+        min_delta=0.0000001
+    )
+
+    batch_loss_history = BatchLossHistory()
 
     if mode == 'final_training':
         checkpoint_filepath = 'best_weights.weights.h5'
@@ -144,26 +192,28 @@ def train_autoencoder(autoencoder, train_set, val_set, optimiser_params, mode):
             monitor='val_loss',
             mode='min',
             save_best_only=True,
-            verbose=1
+            verbose=0
         )
         history = autoencoder.fit(
                 train_set,               
                 epochs=num_epochs,       
                 validation_data=val_set,
-                verbose=1,
-                callbacks=[checkpoint_callback]            
+                verbose=0,
+                callbacks=[checkpoint_callback, batch_loss_history, early_stopping]            
             )
-        
+        epoch_losses = batch_loss_history.epoch_losses
+        batch_losses = batch_loss_history.batch_losses
     
     else: 
         history = autoencoder.fit(
                 train_set,               
                 epochs=num_epochs,       
                 validation_data=val_set,
-                verbose=1      
+                verbose=0,
+                callbacks=[early_stopping, batch_loss_history]       
             )
     
-    return history
+    return history, epoch_losses, batch_losses
 
 
 def evaluate(autoencoder, X_masked, X):
@@ -174,13 +224,16 @@ def train(X_train, Y_train, X_val, Y_val, architecture, optimiser_params, mode):
     train_dataset = tf.data.Dataset.from_tensor_slices((X_train, Y_train)).batch(optimiser_params['batch_size'])
     val_dataset = tf.data.Dataset.from_tensor_slices((X_val, Y_val)).batch(optimiser_params['batch_size'])
     
-    history = train_autoencoder(autoencoder=autoencoder, train_set=train_dataset, val_set=val_dataset, optimiser_params=optimiser_params, mode=mode)
+    history, epoch_losses, batch_losses = train_autoencoder(autoencoder=autoencoder, train_set=train_dataset, val_set=val_dataset, optimiser_params=optimiser_params, mode=mode)
     
     min_val_loss = min(history.history['val_loss'])
-    train_losses = history.history['loss']
+    train_losses_epoch = epoch_losses
+    train_losses_batch = batch_losses
     val_losses = history.history['val_loss']
 
-    return autoencoder, min_val_loss, train_losses, val_losses
+    num_epochs = len(train_losses_epoch)
+
+    return autoencoder, min_val_loss, val_losses, train_losses_epoch, train_losses_batch, num_epochs
 
 def cross_validate(Y, X, architecture, optimiser_params, report, n_splits=10):
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
@@ -191,7 +244,7 @@ def cross_validate(Y, X, architecture, optimiser_params, report, n_splits=10):
         X_train, X_val = X[train_index], X[val_index]
 
         # Train the model and get the minimum validation loss for this fold
-        _, min_val_loss, _, _ = train(
+        _, min_val_loss, _, _, _, num_epochs = train(
             X_train=tf.convert_to_tensor(X_train), 
             Y_train=tf.convert_to_tensor(Y_train), 
             X_val=tf.convert_to_tensor(X_val), 
@@ -200,8 +253,10 @@ def cross_validate(Y, X, architecture, optimiser_params, report, n_splits=10):
             optimiser_params=optimiser_params,
             mode='cross_validation'
         )
-        
+        print('finished training at epoch:', num_epochs, 'with min_val_loss:', min_val_loss)
+
         val_losses.append(min_val_loss)
+        
     
     # Compute the average validation loss across all folds
     average_val_loss = np.mean(val_losses)
@@ -210,14 +265,15 @@ def cross_validate(Y, X, architecture, optimiser_params, report, n_splits=10):
     key = f'architecture={str(architecture)}, optimiser_params={str(optimiser_params)}'
 
     report[key] = {
-    'val_losses': [round(loss, 8) for loss in val_losses],
-    'mean_val_loss': round(average_val_loss, 8),
-    'stdv_val_loss': round(std_val_loss, 8)
+    'val_losses': val_losses,
+    'mean_val_loss': round(average_val_loss, 6),
+    'stdv_val_loss': round(std_val_loss, 6),
+    'num_epochs': num_epochs
     }       
     return report
 
 def final_training(Y_train, X_train, Y_val, X_val, Y_test, X_test, architecture, optimiser_params, report):
-    autoencoder, min_val_loss, train_losses, val_losses = train(
+    autoencoder, min_val_loss, val_losses, train_losses_epoch, train_losses_batch, num_epochs = train(
             X_train=tf.convert_to_tensor(X_train), 
             Y_train=tf.convert_to_tensor(Y_train), 
             X_val=tf.convert_to_tensor(X_val), 
@@ -233,9 +289,26 @@ def final_training(Y_train, X_train, Y_val, X_val, Y_test, X_test, architecture,
     test_loss = evaluate(autoencoder, X_test, Y_test)
     print(f'Test loss: {test_loss}')
 
-    report['train_losses'] = [round(loss, 8) for loss in train_losses]
-    report['val_losses'] = [round(loss, 8) for loss in val_losses]
-    report['min_val_loss'] = round(min_val_loss, 8)
-    report['test_loss'] = round(test_loss, 8)
+    # Get predictions on the test set
+    predictions = autoencoder.predict(X_test)
+
+    # Convert predictions and ground truth to lists for JSON serialization
+    predictions_list = predictions.tolist()
+    ground_truth_list = Y_test.tolist()
+
+    # Save predictions and ground truth to a JSON file
+    results = {
+        'predictions': predictions_list,
+        'ground_truth': ground_truth_list
+    }
+    with open('../report/report_files/inference_results.json', 'w') as f:
+        json.dump(results, f, indent=4)
+
+    report['train_losses_epoch'] = train_losses_epoch
+    report['train_losses_batch'] = train_losses_batch
+    report['val_losses'] = val_losses
+    report['min_val_loss'] = round(min_val_loss, 6)
+    report['test_loss'] = round(test_loss, 6)
+    report['num_epochs'] = num_epochs
 
     return report

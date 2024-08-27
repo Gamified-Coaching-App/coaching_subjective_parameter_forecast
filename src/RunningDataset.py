@@ -161,8 +161,9 @@ class RunningDataset:
         Masks (=set 0) the subjective parameters of the last 7 days of each athlete's data.
         """
         masked_data = data.copy()
+        original_data = data.copy()
         masked_data[:, -7:, -3:] = 0
-        return masked_data
+        return masked_data, original_data[:, -7:, -3:]
 
     def preprocess(self, days=14):
         """
@@ -170,7 +171,7 @@ class RunningDataset:
         """
         self.data = self.normalise(self.data, days=days)
         self.X = self.stack(self.data.drop(columns=self.fixed_columns), days)
-        self.X_masked = self.mask(self.X)
+        X, Y = self.mask(self.X)
 
-        print("Shapes of the datasets: X_train:", self.X.shape, "X_test:", self.X_masked.shape)
-        return self.X, self.X_masked
+        print("Shapes of the datasets: X:", X.shape, "Y:", Y.shape)
+        return X, Y
