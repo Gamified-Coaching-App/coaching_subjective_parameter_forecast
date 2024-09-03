@@ -1,13 +1,13 @@
-# Ignore virtual environment
+
 subj_param_venv/
 
-# Ignore models directory
+
 model/
 
-#ignore data
+
 data/
 
-#ignore pycache
+
 __pycache__/
 
 .DS_Store/

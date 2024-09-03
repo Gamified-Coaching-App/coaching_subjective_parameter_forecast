@@ -1,5 +1,5 @@
 from RunningDataset import RunningDataset
-from autoencoder import cross_validate, final_training
+from SequenceRegressor import cross_validate, final_training
 from config import cross_val_architectures, cross_val_optimiser_params, final_training_architecture, final_training_optimiser_params
 import json
 from sklearn.model_selection import train_test_split
@@ -7,7 +7,10 @@ import itertools
 from datetime import datetime
 import tensorflow as tf
 
-
+"""
+function to run pipeline: define RunningData set instance, preprosess data, set timestamp, 
+run cross validation fine, cross validation base or final training. Save report in json file.
+"""
 def run(mode):
     data = RunningDataset()
     X, Y = data.preprocess(days=14)
@@ -36,7 +39,6 @@ def run(mode):
             json.dump(report, json_file, indent=2)
 
     elif mode == 'final_training':
-        # Target split: 15% test, 15% val, 70% train
         X_train_val, X_test, Y_train_val, Y_test = train_test_split(X, Y, test_size=0.15, random_state=42)
         X_train, X_val, Y_train, Y_val = train_test_split(X_train_val, Y_train_val, test_size=0.15/0.85, random_state=42)
         report = final_training(X_train=X_train, Y_train=Y_train, X_val=X_val, Y_val=Y_val, X_test=X_test, Y_test=Y_test, architecture=final_training_architecture, optimiser_params=final_training_optimiser_params, report=report)

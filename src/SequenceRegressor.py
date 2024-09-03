@@ -10,43 +10,40 @@ import json
 
 NUM_EPOCHS = 1000
 
-class PositionalEncoding(Layer):
-    def __init__(self, max_len, d_model):
-        super(PositionalEncoding, self).__init__()
-        self.positional_encoding = self.get_positional_encoding(max_len, d_model)
-
-    def get_positional_encoding(self, max_len, d_model):
-        positions = tf.range(start=0, limit=max_len, delta=1, dtype=tf.float32)
-        angle_rates = 1 / tf.pow(10000, (2 * (tf.cast(tf.range(d_model), tf.float32) // 2)) / tf.cast(d_model, tf.float32))
-        angle_rads = positions[:, tf.newaxis] * angle_rates[tf.newaxis, :]
-
-        # Apply the sine to even indices in the array; 2i
-        angle_rads = tf.concat([tf.sin(angle_rads[:, 0::2]), tf.cos(angle_rads[:, 1::2])], axis=-1)
-
-        pos_encoding = angle_rads[tf.newaxis, ...]
-
-        return tf.cast(pos_encoding, tf.float32)
-
-    def call(self, inputs):
-        # Add the positional encoding to the inputs
-        return inputs + self.positional_encoding[:, :tf.shape(inputs)[1], :]
-    
+"""
+BatchLossHistory class serves as a callback to store the loss of each batch and epoch during training.
+"""
 class BatchLossHistory(Callback):
+    """
+    function to initialize the batch_losses and epoch_losses lists
+    """
     def on_train_begin(self, logs=None):
         self.batch_losses = []
         self.epoch_losses = []
 
+    """
+    function to store the loss of each batch
+    """
     def on_batch_end(self, batch, logs=None):
         self.batch_losses.append(logs.get('loss'))
 
+    """
+    function to store the loss of each epoch
+    """
     def on_epoch_end(self, epoch, logs=None):
         mean_loss = sum(self.batch_losses) / len(self.batch_losses)
         self.epoch_losses.append(mean_loss)
         self.batch_losses = []
 
-class Autoencoder(models.Model):
+"""
+SequenceRegressor class serves as a wrapper for the model and the optimiser.
+"""
+class SequenceRegressor(models.Model):
+    """
+    __init__ sets up model accoring to @architecture and @optimiser_params
+    """ 
     def __init__(self, architecture, optimiser_params):
-        super(Autoencoder, self).__init__()
+        super(SequenceRegressor, self).__init__()
         self.model = self.create_model(architecture)
     
         if optimiser_params['scheduler'] == 'cosine_decay':
@@ -67,6 +64,9 @@ class Autoencoder(models.Model):
         else:
             self.optimizer = optimizers.Adadelta(learning_rate=lr_schedule, weight_decay=optimiser_params['weight_decay'])
 
+    """
+    function to create the model according to the configuration of layers
+    """ 
     def create_model(self, config):
         original_input = layers.Input(shape=(14, 10), name='original_input')
         x = original_input
@@ -150,9 +150,6 @@ class Autoencoder(models.Model):
                     'normalize_first': layer_config.get('normalize_first')
                 }
                 x = TransformerDecoder(**params)(x)
-            
-            elif layer_type == 'positional_encoding':
-                x = PositionalEncoding(max_len=14, d_model=10)(x)
 
             elif layer_type == 'flatten':
                 x = layers.Flatten()(x)
@@ -167,16 +164,22 @@ class Autoencoder(models.Model):
                 model = models.Model(inputs=original_input, outputs=x)
                 return model
 
+    """
+    function called when the model is called/trained to pass the input through the model
+    """ 
     def call(self, inputs):
         return self.model(inputs)
 
-def train_autoencoder(autoencoder, train_set, val_set, optimiser_params, mode):
-    autoencoder.compile(optimizer=autoencoder.optimizer, loss='mse')
+"""
+function to train model, use early stopping and save the best weights, differentiate between final training and cross validation
+"""
+def train_sequence_regressor(sequence_regressor, train_set, val_set, optimiser_params, mode):
+    sequence_regressor.compile(optimizer=sequence_regressor.optimizer, loss='mse')
     num_epochs = NUM_EPOCHS
 
     early_stopping = EarlyStopping(
         monitor='val_loss',
-        patience=300,  # Stop training after 100 epochs with no improvement
+        patience=300,  
         restore_best_weights=False,
         verbose=0,
         min_delta=0.0000001
@@ -194,7 +197,7 @@ def train_autoencoder(autoencoder, train_set, val_set, optimiser_params, mode):
             save_best_only=True,
             verbose=0
         )
-        history = autoencoder.fit(
+        history = sequence_regressor.fit(
                 train_set,               
                 epochs=num_epochs,       
                 validation_data=val_set,
@@ -205,7 +208,7 @@ def train_autoencoder(autoencoder, train_set, val_set, optimiser_params, mode):
         batch_losses = batch_loss_history.batch_losses
     
     else: 
-        history = autoencoder.fit(
+        history = sequence_regressor.fit(
                 train_set,               
                 epochs=num_epochs,       
                 validation_data=val_set,
@@ -215,16 +218,21 @@ def train_autoencoder(autoencoder, train_set, val_set, optimiser_params, mode):
     
     return history, epoch_losses, batch_losses
 
+"""
+function to evaluate model on test set
+"""
+def evaluate(sequence_regressor, X_masked, X):
+    return sequence_regressor.evaluate(X_masked, X, verbose=0)
 
-def evaluate(autoencoder, X_masked, X):
-    return autoencoder.evaluate(X_masked, X, verbose=0)
-
+"""
+function to initialise model, cut data is batches, train model
+"""
 def train(X_train, Y_train, X_val, Y_val, architecture, optimiser_params, mode):
-    autoencoder = Autoencoder(architecture=architecture, optimiser_params=optimiser_params)
+    sequence_regressor = SequenceRegressor(architecture=architecture, optimiser_params=optimiser_params)
     train_dataset = tf.data.Dataset.from_tensor_slices((X_train, Y_train)).batch(optimiser_params['batch_size'])
     val_dataset = tf.data.Dataset.from_tensor_slices((X_val, Y_val)).batch(optimiser_params['batch_size'])
     
-    history, epoch_losses, batch_losses = train_autoencoder(autoencoder=autoencoder, train_set=train_dataset, val_set=val_dataset, optimiser_params=optimiser_params, mode=mode)
+    history, epoch_losses, batch_losses = train_sequence_regressor(sequence_regressor=sequence_regressor, train_set=train_dataset, val_set=val_dataset, optimiser_params=optimiser_params, mode=mode)
     
     min_val_loss = min(history.history['val_loss'])
     train_losses_epoch = epoch_losses
@@ -233,8 +241,11 @@ def train(X_train, Y_train, X_val, Y_val, architecture, optimiser_params, mode):
 
     num_epochs = len(train_losses_epoch)
 
-    return autoencoder, min_val_loss, val_losses, train_losses_epoch, train_losses_batch, num_epochs
+    return sequence_regressor, min_val_loss, val_losses, train_losses_epoch, train_losses_batch, num_epochs
 
+"""
+function for 5-fold cross validation. Train, add results to report and return report
+"""
 def cross_validate(Y, X, architecture, optimiser_params, report, n_splits=10):
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
     val_losses = []
@@ -243,7 +254,6 @@ def cross_validate(Y, X, architecture, optimiser_params, report, n_splits=10):
         Y_train, Y_val = Y[train_index], Y[val_index]
         X_train, X_val = X[train_index], X[val_index]
 
-        # Train the model and get the minimum validation loss for this fold
         _, min_val_loss, _, _, _, num_epochs = train(
             X_train=tf.convert_to_tensor(X_train), 
             Y_train=tf.convert_to_tensor(Y_train), 
@@ -257,8 +267,6 @@ def cross_validate(Y, X, architecture, optimiser_params, report, n_splits=10):
 
         val_losses.append(min_val_loss)
         
-    
-    # Compute the average validation loss across all folds
     average_val_loss = np.mean(val_losses)
     std_val_loss = np.std(val_losses)
 
@@ -272,8 +280,12 @@ def cross_validate(Y, X, architecture, optimiser_params, report, n_splits=10):
     }       
     return report
 
+
+"""
+function for final training. Train, evaluate on test set, save model, save results to report and return report
+"""
 def final_training(Y_train, X_train, Y_val, X_val, Y_test, X_test, architecture, optimiser_params, report):
-    autoencoder, min_val_loss, val_losses, train_losses_epoch, train_losses_batch, num_epochs = train(
+    sequence_regressor, min_val_loss, val_losses, train_losses_epoch, train_losses_batch, num_epochs = train(
             X_train=tf.convert_to_tensor(X_train), 
             Y_train=tf.convert_to_tensor(Y_train), 
             X_val=tf.convert_to_tensor(X_val), 
@@ -282,21 +294,18 @@ def final_training(Y_train, X_train, Y_val, X_val, Y_test, X_test, architecture,
             optimiser_params=optimiser_params,
             mode='final_training'
             )
-    # Load the best weights saved during training
-    autoencoder.load_weights('best_weights.weights.h5')
-    autoencoder.model.export('../model/subjective_parameter_forecaster')
+    
+    sequence_regressor.load_weights('best_weights.weights.h5')
+    sequence_regressor.model.export('../model/subjective_parameter_forecaster')
 
-    test_loss = evaluate(autoencoder, X_test, Y_test)
+    test_loss = evaluate(sequence_regressor, X_test, Y_test)
     print(f'Test loss: {test_loss}')
 
-    # Get predictions on the test set
-    predictions = autoencoder.predict(X_test)
+    predictions = sequence_regressor.predict(X_test)
 
-    # Convert predictions and ground truth to lists for JSON serialization
     predictions_list = predictions.tolist()
     ground_truth_list = Y_test.tolist()
 
-    # Save predictions and ground truth to a JSON file
     results = {
         'predictions': predictions_list,
         'ground_truth': ground_truth_list

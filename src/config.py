@@ -1,3 +1,7 @@
+"""
+configs for cross validation and final training
+"""
+
 cross_val_architectures = [
     # [
     #     {'type': 'transformer_encoder', 'num_heads': 4, 'intermediate_dim': 12, 'dropout': 0.1, 'activation': 'relu'},
@@ -304,7 +308,7 @@ final_training_architecture= [
 
 final_training_optimiser_params={
         'optimiser': 'adam',
-        'learning_rate': 0.1,  # Ignored when scheduler is applied
+        'learning_rate': 0.1,  
         'weight_decay': 0.0,
         'scheduler': 'cosine_decay',
         'scheduler_params': {
